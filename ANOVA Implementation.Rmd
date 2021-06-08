@@ -1,0 +1,535 @@
+---
+title: "ANOVA Implementation in R"
+author: "18BCE1104 - Ankita Duraphe"
+date: "18/02/2021"
+output:
+  word_document: default
+  html_document:
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+### ANOVA implementation on penguins dataset
+
+* * *
+
+1. What is ANOVA? - ANalysis Of VAriance- statistical test - 2 or more pop means are different - 2 or more groups are significantly diff. An ANOVA test is a way to find out if survey or experiment results are significant. 
+
+2. Why the name or how it works? - ANOVA (means) - compares "between" variance and the variance "within" - If the between variance is significantly larger than the within variance,group means are declared to be diff between variance/within variance - by comparing this ratio to a threshold from the Fisher probability distribution (5%)
+
+3. Similar test?! - student t-test (2) - ANOVA (3 or more)
+
+4. What is continuous variable?
+
+5. What is Categorical variable?
+
+6. Why ANOVA ? - investigate relations between categorical variable and continuous variable
+
+7. ANOVA used for? - type of hypothesis testing for population variance
+
+8. Types of ANOVA - 1-way, 2-way & sometimes 3-way ANOVA, mixed ANOVA, repeated measures ANOVA etc...
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(palmerpenguins)
+library(tidyverse)
+```
+
+* * * 
+View the dataset
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+View(penguins)
+```
+
+* * * 
+selecting features from dataset
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+data = penguins[, c("species", "flipper_length_mm")]
+```
+
+* * * 
+some descriptive statistics
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+summary(data)
+```
+
+* * * 
+data visulaization
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(ggplot2)
+ggplot(data) +
+  aes(x = species, y = flipper_length_mm, color = species) +
+  geom_jitter() +
+  theme(legend.position = "none")
+```
+
+Aim of ANOVA:
+
+1. Measurements (mean, variance) are similar across groups of categorical variable (here species).
+
+2. Compare impact of diff levels of categorical variable on a quantitaive variable (flippers length).
+
+3. Explain quantitative variable based on qualitative variable.
+
+"Are flippers length different for the 3 species of penguins?"
+
+Null and Alternative hypothesis of an ANOVA: 
+
+1. H0: ??_Adelie = ??_Chinstrap = ??_Gentoo (??? the 3 species are equal in terms of flipper length)
+
+2. H1: at least one mean is different (??? at least one species is different from the other 2 species in terms of flipper length)
+
+Assumptions of ANOVA:
+
+1. Check that your observations are independent (Durbin-Watson test)
+
+2. If they are independent, test the normality of residuals,
+
+   a. If normality is assumed, test the homogeneity of the variances:
+   
+   b. If variances are equal, use ANOVA.
+   
+   c. If variances are not equal, use the Welch test.
+   
+   d. If normality is not assumed, use the Kruskal-Wallis test.
+   
+* * * 
+ANOVA evaluation - residuals
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+res_aov = aov(flipper_length_mm ~ species, data = data)
+```
+
+* * * 
+Visual way of Normality check (histogram / QQ plot)
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+par(mfrow = c(1, 2))
+```
+
+* * * 
+histogram
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+hist(res_aov$residuals)
+```
+
+* * * 
+QQ-plot (within the confidence bands?)
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(car)
+qqPlot(res_aov$residuals,id = FALSE)
+```
+
+Note: ANOVA is quite robust to small deviations from normality
+
+* * * 
+Formal way of Normality check 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+shapiro.test(res_aov$residuals)
+```
+
+P value is larger than 5% - normal distribution (residuals) \
+p-value <?? (Null hypothesis gets rejected)
+
+Equality of variances - homogeneity (Visually)
+
+* * * 
+Boxplot
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+boxplot(flipper_length_mm ~ species, data = data)
+```
+
+* * * 
+Dotplot
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library("lattice")
+dotplot(flipper_length_mm ~ species, data = data)
+```
+
+* * * 
+Formal way - Levene's test
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(car)
+leveneTest(flipper_length_mm ~ species,
+           data = data)
+```
+
+p-value being larger than the significance level of 0.05 - null hypothesis
+
+* * * 
+Another method to test normality and homogeneity
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+par(mfrow = c(1, 2))
+```
+
+* * * 
+1. Homogeneity of variances (red line is flat)
+ 
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+plot(res_aov, which = 1)
+```
+
+* * * 
+2. Normality (approx follow dot line)
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+plot(res_aov, which = 2)
+```
+
+* * * 
+ANOVA - Preliminary analyses 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+boxplot(flipper_length_mm ~ species,
+        data = data
+)
+```
+
+* * * 
+descriptive statistics
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+aggregate(flipper_length_mm ~ species,
+          data = data,
+          function(x) round(c(mean = mean(x), sd = sd(x)), 2)
+)
+```
+
+not enough to conclude that flippers are significantly different in the 3 populations of penguins
+
+* * * 
+ANOVA 
+
+1st method: \
+advantage of the first method is that it is easy to switch from the ANOVA (used when variances are equal) 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+oneway.test(flipper_length_mm ~ species,
+            data = data,
+            var.equal = TRUE # assuming equal variances
+)
+```
+
+* * * 
+to the Welch test (used when variances are unequal)
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+oneway.test(flipper_length_mm ~ species,
+            data = data,
+            var.equal = FALSE # assuming unequal variances
+)
+```
+
+* * * 
+2nd method:
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+res_aov = aov(flipper_length_mm ~ species,
+               data = data
+)
+summary(res_aov)
+```
+
+Interpreataion 
+
+1.  p-value is smaller than 0.05 - reject null hypothesis
+
+2. at least one species is different than the others in terms of flippers length (p-value < 2.2e-16)
+
+* * * 
+Report results of ANOVA
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+# remotes::install_github("easystats/report")
+```
+
+Results of an ANOVA, however, do NOT tell us which group(s) is(are) different from the others \
+ -  post-hoc tests - compare groups 2 by 2 :- \
+Turkey HSD / Dunnetts test \
+Chinstrap versus Adelie \
+Gentoo vs. Adelie \
+Gentoo vs. Chinstrap
+
+* * * 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library("report") # Load the package every time you start R
+report(res_aov)
+```
+
+* * * 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(multcomp)
+```
+
+* * * 
+Tukey HSD test:
+2nd method ANOVA is used here
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+post_test = glht(res_aov,
+                  linfct = mcp(species = "Tukey")
+)
+summary(post_test)
+```
+
+All three p-values are smaller than 0.05
+
+* * * 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(multcomp)
+```
+
+* * * 
+Dunnett's test: (Adelie is reference)
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+post_test <- glht(res_aov,
+                  linfct = mcp(species = "Dunnett")
+)
+summary(post_test)
+```
+
+* * * 
+Change reference category: instead of adelie now gentoo
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+data$species <- relevel(data$species, ref = "Gentoo")
+```
+
+* * *  
+Check that Gentoo is the reference category:
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+levels(data$species)
+res_aov2 <- aov(flipper_length_mm ~ species,
+                data = data
+)
+```
+
+* * *  
+Dunnett's test:
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+post_test <- glht(res_aov2,
+                  linfct = mcp(species = "Dunnett")
+)
+summary(post_test)
+```
+
+### One-way ANOVA for Iris Dataset
+
+**Checking Assumptions**
+
+The assumptions of ANOVA are:
+
+1. Samples are independent from one another (within and among groups). 
+
+2. Samples were randomly chosen. 
+
+3. Response variable is normally distributed.
+
+4. Variances are equal among groups.
+
+You have to determine if your sampling was independent and random. The other assumptions can be tested with the code below.
+
+**Testing Normality**
+
+* * *
+First we will test normality using two methods. The first is by looking at the histogram using the hist() function. The second way is to use a statistical test for normality called the Shapiro-Wilk test. 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+attach(iris) 
+hist(Sepal.Width)
+```
+
+The histogram is rather normal, but maybe has a bit of right skew. The Shapiro-Wilk test shows a p-value of 0.10, which is greater than 0.05, suggesting that the data is normally distributed. In summary, if the Shapiro-Wilk p-value is greater than 0.05, it suggests the data is normal; if it’s less than 0.05, then it’s nonnormal.
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+shapiro.test(Sepal.Width)
+```
+
+**Testing Variances**
+
+* * *
+Next we will test if the variances are the same among the groups using the Levene’s test.
+
+We will call the package car to run the function leveneTest. 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(car) 
+lm.iris1<-lm(Sepal.Width~Species,data=iris) 
+leveneTest(lm.iris1)
+```
+
+The variances are equal, as the p-value is 0.556 (greater than 0.05).
+
+This dataset satisfies our assumptions, so we can run the ANOVA!
+
+**Running the one-way ANOVA**
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+anova(lm.iris1)
+```
+
+There is at least one group that is significantly different (p is super small: p< 2.2 x 10^-16).
+
+The summary gives the average of the first species, setosa (estimate of the intercept) and how the other groups are different from setosa (see the estimates of Speciesversicolor and Speciesvirginica). I. ersicolor has, on average, sepals that are 0.658 mm narrower that I. setosa; I. virginica is 0.454 mm narrower than I. setosa.
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+summary(lm.iris1)
+```
+
+**Post-hoc Multiple Comparisons**
+
+* * *
+In the first line of code below, we create another ANOVA object using aov(). This is very similar to using lm() and anova(), like we did above. We use aov() below because it is compatible with the function TukeyHSD() in the second line of code.
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+iris.aov<-aov(Sepal.Width~Species,data=iris)
+TukeyHSD(iris.aov)
+```
+
+Look at the resulting Tukey table. You should see 4 columns and 3 rows. Each row is a comparison between 2 of the species. Look at the 4th column, p adj. This is the p-value for the comparison; less than 0.05 the two groups are different, greater than 0.05 and they are not significanlty different from one another.
+
+### Two-way ANOVA for Iris Dataset
+
+* * *
+Now we will do a two-way ANOVA using the iris dataset again. This time, we will predict if sepal width differs among species and community.
+
+The next code makes the community variable in the iris dataset.
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+v<-c("high","low")
+iris$community<-v
+```
+
+**Checking Assumptions**
+
+Can check normality using the same code above
+
+**Check variances**
+
+* * *
+We will again use a Levene test.
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+library(car) 
+lm.iris2<-lm(Sepal.Width~Species*community,data=iris) 
+leveneTest(lm.iris2)
+```
+
+The Levene p-value is greater than 0.05
+
+**Running the two-way ANOVA**
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+anova(lm.iris2)
+```
+
+Look at the anova table. The farthest right column (Pr(>F)) shows a p-value of 0.42, the interaction of the 2 variables is not significant. Now in the community row, we see a p-value of 0.81 - community does not have a significant effect on sepal width. Finally, we see that Species has a super small p-value (less than 2 X 10^-16). Species of iris has a significant effect on sepal width.
+
+**Post-hoc comparisons**
+
+* * *
+Because the only signicant factor was Species, this post-hoc comparison will be the same as the one we did earlier.
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+iris2.aov<-aov(Sepal.Width~Species,data=iris)
+TukeyHSD(iris2.aov)
+```
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+iris3.aov<-aov(Sepal.Width~Species*community,data=iris)
+TukeyHSD(iris3.aov)
+```
+
+**t-test**
+
+* * *
+A t-test looks for a difference in means between two groups.
+
+First we will create a new dataset that only has two species of iris using the subset() function. 
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+iris.2<-subset(iris,Species!="virginica") #drops all virginica records
+```
+
+**Testing assumptions**
+
+A t-test has almost the same assumptions as ANOVA.
+
+**Checking normality**
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+attach(iris.2)
+```
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+hist(Sepal.Width)
+```
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+shapiro.test(Sepal.Width)
+```
+
+The histogram has a bit of right skew. The Shapiro test p-value is above 0.05, so it’s normally distributed!
+
+**Testing variances**
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+leveneTest(Sepal.Width,Species,data=iris.2)
+```
+
+A Levene test gives a p-value of 0.44, above 0.05, so the variances are not different.
+
+Note: if your variances ARE different, you can use a Welch’s t-test. 
+
+Second note: we used a little different format for the Levene test for this test. They are interchangeable: you could have made the lm (linear model) and ran the Levene’s test on it, like we did with the ANOVAs.
+
+**Running the t-test**
+
+* * *
+
+```{r, warning=FALSE, message=FALSE, tidy=TRUE}
+t.test(Sepal.Width~Species,data=iris.2)
+```
+
+The resulting t-test table is more easily interpreted than most tables in R. It gives you a t-value, degrees of freedom, p-value, and means of both groups. Because the p-value is less than 0.05, sepal width is significantly different between the two species.
+
+* * *
+**Conclusion:** \
+Basic ANOVA implementation has been performed on penguins dataset. Also, both One-way and Two-way ANOVA has been successfully performed on iris dataset.
